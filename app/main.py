@@ -30,7 +30,8 @@ if os.path.exists(frontend_dir):
     
     @app.get("/{path:path}")
     async def serve_spa(path: str):
-        file_path = os.path.join(frontend_dir, path)
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
+        # Resolve absolute path and verify it stays within frontend_dir to prevent traversal
+        resolved = os.path.realpath(os.path.join(frontend_dir, path))
+        if resolved.startswith(os.path.realpath(frontend_dir) + os.sep) and os.path.isfile(resolved):
+            return FileResponse(resolved)
         return FileResponse(os.path.join(frontend_dir, "index.html"))

@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+
+# Install llama-cpp-python from prebuilt wheel (avoids cmake/ninja compilation timeout)
+RUN pip install --no-cache-dir llama-cpp-python==0.2.77 \
+    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .

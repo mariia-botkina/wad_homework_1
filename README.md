@@ -73,6 +73,22 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 To enable real AI responses, download a GGUF model and set the path:
 
+If `wget` is not installed, install it first:
+
+```bash
+# macOS (Homebrew)
+brew install wget
+
+# Ubuntu/Debian
+sudo apt update && sudo apt install -y wget
+
+# Fedora
+sudo dnf install -y wget
+
+# Windows (PowerShell with winget)
+winget install GNU.Wget
+```
+
 ```bash
 # Example: download a small model
 wget https://huggingface.co/TheBloke/Mistral-7B-v0.1-GGUF/resolve/main/mistral-7b-v0.1.Q4_K_M.gguf

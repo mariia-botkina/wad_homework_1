@@ -11,6 +11,7 @@ from app.models.user import User
 from app.config import settings
 
 REFRESH_TOKEN_PREFIX = "refresh_token:"
+OAUTH_STATE_PREFIX = "oauth_state:"
 
 class AuthService:
     def hash_password(self, password: str) -> str:
@@ -51,6 +52,20 @@ class AuthService:
     async def delete_refresh_token(self, redis, refresh_token: str):
         key = f"{REFRESH_TOKEN_PREFIX}{refresh_token}"
         await redis.delete(key)
+
+    async def generate_oauth_state(self, redis) -> str:
+        state = str(uuid.uuid4())
+        key = f"{OAUTH_STATE_PREFIX}{state}"
+        await redis.setex(key, 600, "1")
+        return state
+
+    async def validate_oauth_state(self, redis, state: str) -> bool:
+        key = f"{OAUTH_STATE_PREFIX}{state}"
+        value = await redis.get(key)
+        if not value:
+            return False
+        await redis.delete(key)
+        return True
     
     async def register(self, db: AsyncSession, username: str, password: str, email: Optional[str] = None) -> User:
         result = await db.execute(select(User).where(User.username == username))

@@ -9,6 +9,27 @@ const state = {
     isSending: false,
 };
 
+function resetChatView() {
+    const chatList = document.getElementById('chat-list');
+    const messages = document.getElementById('messages-container');
+    const chatTitle = document.getElementById('chat-title');
+    const chatWindow = document.getElementById('chat-window');
+    const emptyState = document.getElementById('empty-state');
+
+    if (chatList) chatList.innerHTML = '';
+    if (messages) messages.innerHTML = '';
+    if (chatTitle) chatTitle.textContent = 'Chat';
+    if (chatWindow) chatWindow.classList.add('hidden');
+    if (emptyState) emptyState.classList.remove('hidden');
+}
+
+function resetSessionStateForNewLogin() {
+    state.currentUser = null;
+    state.currentChatId = null;
+    state.chats = [];
+    resetChatView();
+}
+
 function saveTokens(access, refresh) {
     state.accessToken = access;
     state.refreshToken = refresh;
@@ -100,6 +121,7 @@ async function handleLogin() {
         if (res.ok) {
             const data = await res.json();
             saveTokens(data.access_token, data.refresh_token);
+            resetSessionStateForNewLogin();
             await initApp();
         } else {
             const err = await res.json();
@@ -133,6 +155,7 @@ async function handleRegister() {
         if (res.ok) {
             const data = await res.json();
             saveTokens(data.access_token, data.refresh_token);
+            resetSessionStateForNewLogin();
             await initApp();
         } else {
             const err = await res.json();
@@ -151,9 +174,9 @@ async function handleLogout() {
         await apiRequest('POST', '/api/auth/logout', { refresh_token: state.refreshToken }, false);
     }
     clearTokens();
-    state.currentUser = null;
-    state.currentChatId = null;
-    state.chats = [];
+    resetSessionStateForNewLogin();
+    document.getElementById('username-display').textContent = '';
+    document.getElementById('user-avatar').textContent = 'U';
     showAuth();
 }
 
@@ -172,6 +195,11 @@ async function loadChats() {
     if (res && res.ok) {
         state.chats = await res.json();
         renderChatList();
+    } else {
+        state.currentChatId = null;
+        state.chats = [];
+        renderChatList();
+        resetChatView();
     }
 }
 
@@ -373,6 +401,7 @@ function handleOAuthCallback() {
         const refreshToken = params.get('refresh_token');
         if (accessToken && refreshToken) {
             saveTokens(accessToken, refreshToken);
+            resetSessionStateForNewLogin();
             window.history.replaceState(null, '', '/');
             return true;
         }
@@ -389,10 +418,14 @@ async function initApp() {
     await loadCurrentUser();
     if (!state.currentUser) {
         clearTokens();
+        resetSessionStateForNewLogin();
         showAuth();
         return;
     }
     
+    state.currentChatId = null;
+    state.chats = [];
+    resetChatView();
     showChat();
     await loadChats();
 }

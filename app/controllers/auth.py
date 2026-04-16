@@ -52,7 +52,10 @@ async def refresh(body: RefreshRequest, redis=Depends(get_redis)):
     return TokenResponse(access_token=access_token, refresh_token=new_refresh_token)
 
 @router.post("/logout")
-async def logout(body: RefreshRequest, redis=Depends(get_redis)):
+async def logout(body: RefreshRequest, current_user: User = Depends(get_current_user), redis=Depends(get_redis)):
+    user_id = await auth_service.get_user_id_from_refresh_token(redis, body.refresh_token)
+    if not user_id or user_id != current_user.id:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
     await auth_service.delete_refresh_token(redis, body.refresh_token)
     return {"message": "Logged out"}
 
@@ -61,21 +64,26 @@ async def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 @router.get("/github")
-async def github_login():
+async def github_login(redis=Depends(get_redis)):
     if not settings.GITHUB_CLIENT_ID:
         raise HTTPException(status_code=501, detail="GitHub OAuth not configured")
+    state = await auth_service.generate_oauth_state(redis)
     url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
         f"&scope=user:email"
+        f"&state={state}"
     )
     return RedirectResponse(url=url)
 
 @router.get("/github/callback")
-async def github_callback(code: str, db: AsyncSession = Depends(get_db), redis=Depends(get_redis)):
+async def github_callback(code: str, state: str, db: AsyncSession = Depends(get_db), redis=Depends(get_redis)):
     if not settings.GITHUB_CLIENT_ID:
         raise HTTPException(status_code=501, detail="GitHub OAuth not configured")
+
+    if not await auth_service.validate_oauth_state(redis, state):
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
     
     token = await auth_service.get_github_access_token(code)
     if not token:
